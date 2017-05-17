@@ -35,6 +35,7 @@
 #include "G4RunManager.hh"
 #include "G4UnitsTable.hh"
 #include "G4SystemOfUnits.hh"
+#include "GetUnitHistogram.hh"
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
@@ -42,13 +43,20 @@ B4RunAction::B4RunAction()
  : G4UserRunAction()
 { 
   // set printing event number per each event
-  G4RunManager::GetRunManager()->SetPrintProgress(1);     
+  G4RunManager::GetRunManager()->SetPrintProgress(1);  
+  
+  // writing into DRS4 type binary file   
+  
+
+
+
 
   // Create analysis manager
   // The choice of analysis technology is done via selectin of a namespace
   // in B4Analysis.hh
   G4AnalysisManager* analysisManager = G4AnalysisManager::Instance();
   G4cout << "Using " << analysisManager->GetType() << G4endl;
+  
 
   // Create directories 
   //analysisManager->SetHistoDirectoryName("histograms");
@@ -64,7 +72,7 @@ B4RunAction::B4RunAction()
   analysisManager->CreateH1("2","Edep in gap", 100, 0., 100*MeV);
   analysisManager->CreateH1("3","trackL in absorber", 100, 0., 1*m);
   analysisManager->CreateH1("4","trackL in gap", 100, 0., 50*cm);
-  analysisManager->CreateH1("5","TimeShape of Energy", 100, 0., 100*ns); ///pedja added
+  analysisManager->CreateH1("5","TimeShape of Energy", 100, 0., 100*ns); ///add
 
   // Creating ntuple
   //
@@ -87,6 +95,8 @@ B4RunAction::~B4RunAction()
 
 void B4RunAction::BeginOfRunAction(const G4Run* /*run*/)
 { 
+	int i;
+	const float CalWidth(0.2);
   //inform the runManager to save random number seed
   //G4RunManager::GetRunManager()->SetRandomNumberStore(true);
   
@@ -97,6 +107,25 @@ void B4RunAction::BeginOfRunAction(const G4Run* /*run*/)
   //
   G4String fileName = "B4";
   analysisManager->OpenFile(fileName);
+
+  std::ofstream OutDRS4File;// file will be open once by B4RunAction::BeginOfRunAction to write headers, then closed
+							// then it will be open for each event by B4cEventAction::EndOfEventAction
+							// to APPEND the event, and then close, just to be reopen for the next event... and so on
+  OutDRS4File.open("DRS4.dat",std::ofstream::binary);
+  // write headers of DRS output file
+  //fputs("EHDR", OutDRS4File);
+  OutDRS4File<<"DRS4"<<"TIME"<<"B#00"; // board serNo is not important anyway
+  OutDRS4File<<"C001";
+  for (i=0; i<1024; i++) OutDRS4File.write(reinterpret_cast<const char *>(&CalWidth), sizeof(CalWidth));// the time calibration of DRS4, here 0.2ns constant width of all bins
+  OutDRS4File<<"C002";
+  for (i=0; i<1024; i++) OutDRS4File.write(reinterpret_cast<const char *>(&CalWidth), sizeof(CalWidth));
+  OutDRS4File<<"C003";
+  for (i=0; i<1024; i++) OutDRS4File.write(reinterpret_cast<const char *>(&CalWidth), sizeof(CalWidth));
+  OutDRS4File<<"C004";
+  for (i=0; i<1024; i++) OutDRS4File.write(reinterpret_cast<const char *>(&CalWidth), sizeof(CalWidth));
+  
+    OutDRS4File.close();// headers writen, the events will be appended individually in B4EventAction 
+
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -140,6 +169,8 @@ void B4RunAction::EndOfRunAction(const G4Run* /*run*/)
   //
   analysisManager->Write();
   analysisManager->CloseFile();
+  //fclose(OutDRS4File);
+
 
 }
 

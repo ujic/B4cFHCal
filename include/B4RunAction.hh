@@ -31,8 +31,14 @@
 #ifndef B4RunAction_h
 #define B4RunAction_h 1
 
+#include <fstream>
+
 #include "G4UserRunAction.hh"
 #include "globals.hh"
+//#include "GetUnitHistogram.hh"
+#include "TH1F.h"
+
+
 
 class G4Run;
 
@@ -59,6 +65,8 @@ class B4RunAction : public G4UserRunAction
   public:
     B4RunAction();
     virtual ~B4RunAction();
+    
+    TH1F *UnitResponseShape;
 
     virtual void BeginOfRunAction(const G4Run*);
     virtual void   EndOfRunAction(const G4Run*);

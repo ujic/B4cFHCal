@@ -4,7 +4,7 @@
 # Setup the project
 #
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
-project(B4c)
+project(B4cFHCal)
 
 #----------------------------------------------------------------------------
 # Find Geant4 package, activating all available UI and Vis drivers by default
@@ -25,6 +25,14 @@ endif()
 include(${Geant4_USE_FILE})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
+#ROOT module include
+
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
+# Find ROOT
+find_package(ROOT REQUIRED)#COMPONENTS MathCore RIO Hist Tree Net)
+# Add ROOT header paths
+include_directories(${ROOT_INCLUDE_DIRS})
+
 #----------------------------------------------------------------------------
 # Locate sources and headers for this project
 # NB: headers are included so they will show up in IDEs
@@ -36,7 +44,7 @@ file(GLOB headers ${PROJECT_SOURCE_DIR}/include/*.hh)
 # Add the executable, and link it to the Geant4 libraries
 #
 add_executable(exampleB4c exampleB4c.cc ${sources} ${headers})
-target_link_libraries(exampleB4c ${Geant4_LIBRARIES})
+target_link_libraries(exampleB4c ${Geant4_LIBRARIES} ${ROOT_LIBRARIES} ${ROOT_COMPONENT_LIBRARIES})
 
 #----------------------------------------------------------------------------
 # Copy all scripts to the build directory, i.e. the directory in which we

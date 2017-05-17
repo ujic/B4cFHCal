@@ -31,13 +31,16 @@
 #ifndef B4cEventAction_h
 #define B4cEventAction_h 1
 
-#define TIMEBINS 1000
+#define TIMEBINS 1024
+
+#include <fstream>
 
 #include "G4UserEventAction.hh"
-
 #include "B4cCalorHit.hh"
-
 #include "globals.hh"
+//ROOT Class
+#include "TH1F.h"
+#include "TTimeStamp.h"
 
 /// Event action class
 ///
@@ -45,11 +48,18 @@
 /// deposit and track lengths of charged particles in Absober and Gap layers 
 /// stored in the hits collections.
 
+typedef signed short SSHORT;
+typedef unsigned short USHORT;
+
+
+
 class B4cEventAction : public G4UserEventAction
 {
 public:
-
-    G4double* fEdepTimeShape;
+	double mpe; // the average energy deposited in the octagon scintilator from muon of 30 GeV
+    G4double* fEdepTimeShape; 
+    SSHORT* fDetectorTimeShape; 
+    //TH1F *UnitResponseShape;
 
   B4cEventAction();
   virtual ~B4cEventAction();
@@ -59,8 +69,10 @@ public:
 
   void AddEdep(G4double edep) { fEdep += edep; }
   void AddTimeShape (G4double time, G4double E){
-    if (time<TIMEBINS) fEdepTimeShape[G4int(time)] += E;/// Time shape in ns - dt is not divided by ns as ns=1.
-    else G4cout<<" dt too LARGE "<<time;
+	  //int timebins(TIMEBINS);
+    if (time<200.) fEdepTimeShape[G4int(time*100./512.)] += E;/// Time shape bins of DRS4, where binwidth ~ 200 ps
+															/// The bin width of DRS4 vary roghly from 100 - 300 ps 
+    else G4cout<<" time too LARGE "<<time;
   }
 
 
@@ -75,6 +87,10 @@ private:
   G4int  fAbsHCID;
   G4int  fGapHCID;
   G4double     fEdep;
+  
+	unsigned int *year, *month, *day, *hour, *min, *sec;
+	USHORT yU, moU, dU, hU, miU, sU;
+	TTimeStamp ts;
 
 
   //B4RunAction* fRunAction;

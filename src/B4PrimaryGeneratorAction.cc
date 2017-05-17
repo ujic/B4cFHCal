@@ -56,7 +56,7 @@ B4PrimaryGeneratorAction::B4PrimaryGeneratorAction()
     = G4ParticleTable::GetParticleTable()->FindParticle("pi+");
   fParticleGun->SetParticleDefinition(particleDefinition);
   fParticleGun->SetParticleMomentumDirection(G4ThreeVector(0.,0.,1.));
-  fParticleGun->SetParticleEnergy(60.*GeV);
+  fParticleGun->SetParticleEnergy(30.*GeV);
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......

@@ -60,10 +60,10 @@ void B4cActionInitialization::Build() const
   SetUserAction(new B4RunAction);
   //SetUserAction(new B4cEventAction);
 
-  B4cEventAction* eventAction = new B4cEventAction; ///pedja added
-  SetUserAction(eventAction);///pedja added
+  B4cEventAction* eventAction = new B4cEventAction; /// added by me
+  SetUserAction(eventAction);///added by me
 
-  SetUserAction(new B4cSteppingAction(eventAction));///pedja added
+  SetUserAction(new B4cSteppingAction(eventAction));///added by me
 
 }  
 

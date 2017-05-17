@@ -34,6 +34,8 @@
 #include "B4cCalorimeterSD.hh"
 #include "B4cCalorHit.hh"
 #include "B4Analysis.hh"
+/// ******
+#include "GetUnitHistogram.hh"
 
 #include "G4RunManager.hh"
 #include "G4Event.hh"
@@ -51,10 +53,12 @@
 B4cEventAction::B4cEventAction()
  : G4UserEventAction(),
    fAbsHCID(-1),
-   fGapHCID(-1)
+   fGapHCID(-1),
+   mpe(1.1)
 {
-    fEdepTimeShape=(G4double *)malloc((size_t) (TIMEBINS*sizeof(G4double)));
+    fEdepTimeShape = new G4double[TIMEBINS]; //(G4double *)malloc((size_t) (TIMEBINS*sizeof(G4double)));
     if (!fEdepTimeShape) G4cout<<"***************** !!!!!!!!!!!!!!  allocation failure in vector()  ***************!!!!!!!!!!!!!!!!!!!!!!"<<G4endl;
+	fDetectorTimeShape = new SSHORT[TIMEBINS];
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -62,8 +66,8 @@ B4cEventAction::B4cEventAction()
 B4cEventAction::~B4cEventAction()
 {
 
-    free((FREE_ARG) (fEdepTimeShape+TIMEBINS));
-
+    
+delete fEdepTimeShape;
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -115,6 +119,27 @@ void B4cEventAction::BeginOfEventAction(const G4Event* /*event*/)
 
 void B4cEventAction::EndOfEventAction(const G4Event* event)
 {  
+	//const float ZeroFloat(0.);
+	const USHORT ZeroUSHORT(0);
+	const SSHORT ZeroSSHORT(0);
+	const unsigned int ZeroUInt(0);
+	unsigned int UeventID;
+	RootHistograms *InstHistograms = new RootHistograms();
+	TH1F* UnitResponseShape=InstHistograms->MakeUnitHistogram();
+	int timebins(TIMEBINS);
+	
+	year = new unsigned int;
+	month = new unsigned int;
+	day = new unsigned int;
+	hour = new unsigned int;
+	min = new unsigned int;
+	sec = new unsigned int;	
+	
+	std::ofstream OutDRS4FileEvents;// file will be open once by B4RunAction::BeginOfRunAction to write headers, then closed
+							// then it will be open for each event by B4cEventAction::EndOfEventAction
+							// to APPEND the event, and then close, just to be reopen for the next event... and so on
+	
+	OutDRS4FileEvents.open("DRS4.dat", std::ofstream::binary | std::ofstream::app);
   // Get hits collections IDs (only once)
   if ( fAbsHCID == -1 ) {
     fAbsHCID 
@@ -164,18 +189,86 @@ void B4cEventAction::EndOfEventAction(const G4Event* event)
 
 
   for(int i = 0; i<TIMEBINS; i++) {
+	  // i correspond to one bin in DRS4
     analysisManager->FillH1(5, G4double(i), fEdepTimeShape[i]);
-fEdepTimeShape[i]=0;
+    
+    if(fEdepTimeShape[i]!=0) for(int j=176; j<396; j++) 
+			// the Unit signal starts at bin 176 (end 396) in UnitResponseShape, total width  220bins (44 ns)
+			// mpe is the most probable energy of Unit response (muon)
+			// delay on signal, since DRS4Analysis calculates the base line using first 35 ns of the signal
+			if ((i+j)<999) fDetectorTimeShape[i+j+25]+=static_cast<SSHORT>(-10*fEdepTimeShape[i]/mpe*UnitResponseShape->GetBinContent(j));
+	fEdepTimeShape[i]=0;
 
+	
   }
+	UeventID = static_cast<unsigned int>(eventID);
+	OutDRS4FileEvents<<"EHDR";
+	OutDRS4FileEvents.write(reinterpret_cast<const char *>(&UeventID), sizeof(UeventID));
+	ts.GetDate(1,0,year, month, day);
+	ts.GetTime(1,0,hour, min, sec);
+	yU = static_cast<USHORT>(*year);
+	moU= static_cast<USHORT>(*month);
+	dU= static_cast<USHORT>(*day);
+	hU= static_cast<USHORT>(*hour);
+	miU= static_cast<USHORT>(*min);
+	sU= static_cast<USHORT>(*sec);
+	OutDRS4FileEvents.write(reinterpret_cast<const char *>(&yU), sizeof(yU));
+	OutDRS4FileEvents.write(reinterpret_cast<const char *>(&moU), sizeof(moU));
+	OutDRS4FileEvents.write(reinterpret_cast<const char *>(&dU), sizeof(dU));
+	OutDRS4FileEvents.write(reinterpret_cast<const char *>(&hU), sizeof(hU));
+	OutDRS4FileEvents.write(reinterpret_cast<const char *>(&miU), sizeof(miU));
+	OutDRS4FileEvents.write(reinterpret_cast<const char *>(&sU), sizeof(sU));
+	OutDRS4FileEvents.write(reinterpret_cast<const char *>(&ZeroUSHORT), sizeof(ZeroUSHORT));//miliseconds
+	OutDRS4FileEvents.write(reinterpret_cast<const char *>(&ZeroUSHORT), sizeof(ZeroUSHORT));//range
+	
+	OutDRS4FileEvents<<"B#";
+	OutDRS4FileEvents.write(reinterpret_cast<const char *>(&ZeroUSHORT), sizeof(ZeroUSHORT));
+	OutDRS4FileEvents<<"T#";
+	OutDRS4FileEvents.write(reinterpret_cast<const char *>(&ZeroUSHORT), sizeof(ZeroUSHORT));
+	OutDRS4FileEvents<<"C001";	
+	OutDRS4FileEvents.write(reinterpret_cast<const char *>(&ZeroUInt), sizeof(ZeroUInt));// scaller
+	OutDRS4FileEvents.write(reinterpret_cast<const char*>(fDetectorTimeShape), 2*timebins);// /sizeof(fDetectorTimeShape[0]));
+    
+    
+    //write same for ch2
+    OutDRS4FileEvents<<"C002";
+	OutDRS4FileEvents.write(reinterpret_cast<const char *>(&ZeroUInt), sizeof(ZeroUInt));// scaller
+    OutDRS4FileEvents.write(reinterpret_cast<const char*>(fDetectorTimeShape), 2*timebins);
+   
+	// write ch3 and ch4, used in a coincidence as the trigger
+	// the advance of 10bins (2ns) introduce for ch1 and ch2
+	// maybe the amplitude of ch3,4 should be augmented?
+    OutDRS4FileEvents<<"C003";
+	OutDRS4FileEvents.write(reinterpret_cast<const char *>(&ZeroUInt), sizeof(ZeroUInt));// scaller
+	OutDRS4FileEvents.write(reinterpret_cast<const char*>(fDetectorTimeShape+10),  2*(timebins - 10));
+	OutDRS4FileEvents.write(reinterpret_cast<const char *>(&ZeroSSHORT), sizeof(ZeroSSHORT)*10);
+    OutDRS4FileEvents<<"C004";
+	OutDRS4FileEvents.write(reinterpret_cast<const char *>(&ZeroUInt), sizeof(ZeroUInt));// scaller
+	OutDRS4FileEvents.write(reinterpret_cast<const char*>(fDetectorTimeShape+10), 2*(timebins - 10));
+	OutDRS4FileEvents.write(reinterpret_cast<const char *>(&ZeroSSHORT), sizeof(ZeroSSHORT)*10);
 
+OutDRS4FileEvents.close();
+  UnitResponseShape->Delete(); 
+  //delete UnitResponseShape;
+  delete InstHistograms;
+  
+  delete year;
+  delete month;
+  delete day;
+  delete hour;
+  delete min;
+  delete sec;
+  
+  //for (i=0; i<1024; i++) fDetectorTimeShape[i]=0;
+  memset(fDetectorTimeShape, 0, timebins * sizeof(fDetectorTimeShape[0]));
 
   // fill ntuple
   analysisManager->FillNtupleDColumn(0, absoHit->GetEdep());
   analysisManager->FillNtupleDColumn(1, gapHit->GetEdep());
   analysisManager->FillNtupleDColumn(2, absoHit->GetTrackLength());
   analysisManager->FillNtupleDColumn(3, gapHit->GetTrackLength());
-  analysisManager->AddNtupleRow();  
+  analysisManager->AddNtupleRow(); 
+
 }  
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......

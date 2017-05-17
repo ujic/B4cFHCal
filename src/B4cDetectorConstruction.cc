@@ -301,7 +301,7 @@ G4VPhysicalVolume* B4cDetectorConstruction::DefineVolumes()
                                    
   new G4PVPlacement(
                  0,                // no rotation
-                 G4ThreeVector(10.*cm, 0., 0.), // its position
+                 G4ThreeVector(0.*cm, 0., 0.), // its position
                  gapLV,            // its logical volume                         
                  "Gap",            // its name
                  calorLV,          // its mother  volume
